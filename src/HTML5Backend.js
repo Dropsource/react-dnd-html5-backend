@@ -32,6 +32,7 @@ export default class HTML5Backend {
     this.handleSelectStart = this.handleSelectStart.bind(this);
     this.endDragIfSourceWasRemovedFromDOM = this.endDragIfSourceWasRemovedFromDOM.bind(this);
     this.endDragNativeItem = this.endDragNativeItem.bind(this);
+    this.handleScroll = this.handleScroll.bind(this);
   }
 
   setup() {
@@ -67,6 +68,7 @@ export default class HTML5Backend {
     target.addEventListener('dragover', this.handleTopDragOverCapture, true);
     target.addEventListener('drop', this.handleTopDrop);
     target.addEventListener('drop', this.handleTopDropCapture, true);
+    target.addEventListener('scroll', this.handleScroll, true);
   }
 
   removeEventListeners(target) {
@@ -80,6 +82,7 @@ export default class HTML5Backend {
     target.removeEventListener('dragover', this.handleTopDragOverCapture, true);
     target.removeEventListener('drop', this.handleTopDrop);
     target.removeEventListener('drop', this.handleTopDropCapture, true);
+    target.removeEventListener('scroll', this.handleScroll, true);
   }
 
   connectDragPreview(sourceId, node, options) {
@@ -154,7 +157,10 @@ export default class HTML5Backend {
     return defaults(sourcePreviewNodeOptions || {}, {
       anchorX: 0.5,
       anchorY: 0.5,
-      captureDraggingState: false
+      captureDraggingState: false,
+      useOffset: false,
+      offsetX: 0,
+      offsetY: 0
     });
   }
 
@@ -285,15 +291,21 @@ export default class HTML5Backend {
         const sourceId = this.monitor.getSourceId();
         const sourceNode = this.sourceNodes[sourceId];
         const dragPreview = this.sourcePreviewNodes[sourceId] || sourceNode;
-        const { anchorX, anchorY } = this.getCurrentSourcePreviewNodeOptions();
-        const anchorPoint = { anchorX, anchorY };
-        const dragPreviewOffset = getDragPreviewOffset(
-          sourceNode,
-          dragPreview,
-          clientOffset,
-          anchorPoint
-        );
-        dataTransfer.setDragImage(dragPreview, dragPreviewOffset.x, dragPreviewOffset.y);
+        const { anchorX, anchorY, useOffset, offsetX, offsetY } = this.getCurrentSourcePreviewNodeOptions();
+
+        if (!useOffset) {
+          const anchorPoint = { anchorX, anchorY };
+          const dragPreviewOffset = getDragPreviewOffset(
+              sourceNode,
+              dragPreview,
+              clientOffset,
+              anchorPoint
+          );
+          dataTransfer.setDragImage(dragPreview, dragPreviewOffset.x, dragPreviewOffset.y);
+        }
+        else {
+          dataTransfer.setDragImage(dragPreview, offsetX, offsetY);
+        }
       }
 
       try {
@@ -521,5 +533,11 @@ export default class HTML5Backend {
     // to enable drag and drop
     e.preventDefault();
     target.dragDrop();
+  }
+
+  handleScroll(e) {
+    if (this.monitor.isDragging()) {
+      this.actions.endDrag();
+    }
   }
 }
